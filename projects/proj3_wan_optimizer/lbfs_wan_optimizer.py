@@ -16,7 +16,6 @@ class WanOptimizer(wan_optimizer.BaseWanOptimizer):
         wan_optimizer.BaseWanOptimizer.__init__(self)
         self.buffers = {}
         self.hash_payloads = {}
-        self.sliding_window = ""
         # Add any code that you like here (but do not add any constructor arguments).
         return
 
@@ -38,16 +37,13 @@ class WanOptimizer(wan_optimizer.BaseWanOptimizer):
             # The packet is destined to one of the clients connected to this middlebox;
             # send the packet there.
 
-            # if hash code, just send the corresponding block immediately
             if not packet.is_raw_data:
                 block = self.hash_payloads[packet.payload]
                 self.send_block(block, packet_key, packet.is_fin, False)
-            # otherwise, buffer for full 8k bytes
             else:
                 self.add_packet_to_buffer(packet_key, packet)
                 curr_block = self.buffers[packet_key]
                 block_length = len(curr_block)
-                # see if block reaches 8000 byte goal
                 left = 0
                 right = 48 if block_length >= 48 else block_length
                 while right <= block_length:
@@ -72,7 +68,6 @@ class WanOptimizer(wan_optimizer.BaseWanOptimizer):
                     else:
                         left = left + 1
                         right = right + 1
-
                 if packet_key in self.buffers:
                     if packet.is_fin:
                         send_block = self.buffers[packet_key]
@@ -85,7 +80,6 @@ class WanOptimizer(wan_optimizer.BaseWanOptimizer):
             # The packet must be destined to a host connected to the other middlebox
             # so send it across the WAN.
 
-            # add packet to buffer based on (src, dest)
             self.add_packet_to_buffer(packet_key, packet)
             curr_block = self.buffers[packet_key]
             block_length = len(curr_block)
